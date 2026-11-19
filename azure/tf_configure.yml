@@ -1,0 +1,66 @@
+---
+- name: Configure the network that Terraform built
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - vars/nsg_rules.yml
+
+  vars:
+    rg: "{{ lookup('ansible.builtin.env', 'ARM_RESOURCE_GROUP') }}"
+    tf_vnet: testy-vnet
+
+  tasks:
+    - name: Read the VNet Terraform built
+      azure.azcollection.azure_rm_virtualnetwork_info:
+        resource_group: "{{ rg }}"
+        name: "{{ tf_vnet }}"
+      register: tf_vnet_info
+
+    - name: Stop if Terraform hasn't built it yet
+      ansible.builtin.assert:
+        that: tf_vnet_info.virtualnetworks | length == 1
+        fail_msg: "{{ tf_vnet }} not found. Run terraform apply in ~/mycode/tf-drift first."
+
+    - name: Remember its location and address space
+      ansible.builtin.set_fact:
+        tf_location: "{{ tf_vnet_info.virtualnetworks[0].location }}"
+        tf_space: "{{ tf_vnet_info.virtualnetworks[0].address_prefixes[0] }}"
+
+    - name: "Change 1: add ownership tags to the VNet"
+      azure.azcollection.azure_rm_virtualnetwork:
+        resource_group: "{{ rg }}"
+        name: "{{ tf_vnet }}"
+        location: "{{ tf_location }}"
+        address_prefixes_cidr:
+          - "{{ tf_space }}"
+        tags:
+          owner: network-team
+          configured_by: ansible
+        append_tags: true
+
+    - name: "Change 2a: create the firewall"
+      azure.azcollection.azure_rm_securitygroup:
+        resource_group: "{{ rg }}"
+        name: testy-public-nsg
+        location: "{{ tf_location }}"
+        rules: "{{ nsg_rules }}"
+        purge_rules: true
+        tags:
+          managed_by: ansible
+
+    - name: "Change 2b: attach the firewall to Terraform's public subnet"
+      azure.azcollection.azure_rm_subnet:
+        resource_group: "{{ rg }}"
+        virtual_network: "{{ tf_vnet }}"
+        name: testy-public-subnet
+        address_prefix_cidr: "{{ tf_space | ansible.utils.ipsubnet(24, 1) }}"
+        security_group: testy-public-nsg
+        private_endpoint_network_policies: Disabled
+
+    - name: "Change 3: add a management subnet"
+      azure.azcollection.azure_rm_subnet:
+        resource_group: "{{ rg }}"
+        virtual_network: "{{ tf_vnet }}"
+        name: testy-mgmt-subnet
+        address_prefix_cidr: "{{ tf_space | ansible.utils.ipsubnet(24, 20) }}"
