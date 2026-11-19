@@ -1,0 +1,44 @@
+---
+- name: Configure the firewall on my public subnet
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - vars/network.yml
+    - vars/nsg_rules.yml
+
+  tasks:
+    - name: Look up my resource group
+      azure.azcollection.azure_rm_resourcegroup_info:
+        name: "{{ rg }}"
+      register: rg_info
+
+    - name: Make the NSG match vars/nsg_rules.yml exactly
+      azure.azcollection.azure_rm_securitygroup:
+        resource_group: "{{ rg }}"
+        name: "{{ net_name }}-public-nsg"
+        location: "{{ rg_info.resourcegroups[0].location }}"
+        rules: "{{ nsg_rules }}"
+        purge_rules: true
+        tags: "{{ tags }}"
+
+    - name: Attach the NSG to the public subnet
+      azure.azcollection.azure_rm_subnet:
+        resource_group: "{{ rg }}"
+        virtual_network: "{{ net_name }}-vnet"
+        name: "{{ net_name }}-public-subnet"
+        address_prefix_cidr: "{{ address_space | ansible.utils.ipsubnet(24, 1) }}"
+        security_group: "{{ net_name }}-public-nsg"
+
+    - name: Read the NSG back from Azure
+      azure.azcollection.azure_rm_securitygroup_info:
+        resource_group: "{{ rg }}"
+        name: "{{ net_name }}-public-nsg"
+      register: nsg_info
+
+    - name: Show the rules Azure has now
+      ansible.builtin.debug:
+        msg: "{{ item.priority }} {{ item.access }} {{ item.protocol }}/{{ item.destination_port_range }} ({{ item.name }})"
+      loop: "{{ nsg_info.securitygroups[0].rules | sort(attribute='priority') }}"
+      loop_control:
+        label: "{{ item.name }}"
