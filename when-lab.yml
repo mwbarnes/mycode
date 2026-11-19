@@ -1,0 +1,20 @@
+---
+- name: Our first play
+  hosts: planetexpress
+  gather_facts: yes
+  connection: ansible.builtin.ssh
+
+  tasks:
+
+    - name: Install tree on Ubuntu machines
+      ansible.builtin.apt:
+        name: tree
+        state: present
+      become: yes 
+      when: ansible_facts['distribution'] == "Ubuntu" # NEW LINE
+    - name: Install tree on RHEL machines
+      ansible.builtin.dnf:
+        name: tree
+        state: present
+      become: yes 
+      when: ansible_facts['distribution'] == "RedHat" # NEW LINE
