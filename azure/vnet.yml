@@ -1,0 +1,32 @@
+---
+- name: Build my virtual network
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - vars/network.yml
+
+  tasks:
+    - name: Look up my resource group (like a Terraform data block)
+      azure.azcollection.azure_rm_resourcegroup_info:
+        name: "{{ rg }}"
+      register: rg_info
+
+    - name: Create the virtual network
+      azure.azcollection.azure_rm_virtualnetwork:
+        resource_group: "{{ rg }}"
+        name: "{{ net_name }}-vnet"
+        location: "{{ rg_info.resourcegroups[0].location }}"
+        address_prefixes_cidr:
+          - "{{ address_space }}"
+        tags: "{{ tags }}"
+
+    - name: Create one subnet per list item
+      azure.azcollection.azure_rm_subnet:
+        resource_group: "{{ rg }}"
+        virtual_network: "{{ net_name }}-vnet"
+        name: "{{ net_name }}-{{ item.name }}-subnet"
+        address_prefix_cidr: "{{ address_space | ansible.utils.ipsubnet(24, item.index) }}"
+      loop: "{{ subnets }}"
+      loop_control:
+        label: "{{ net_name }}-{{ item.name }}-subnet"

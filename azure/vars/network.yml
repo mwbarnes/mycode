@@ -1,0 +1,18 @@
+---
+rg: "{{ lookup('ansible.builtin.env', 'ARM_RESOURCE_GROUP') }}"
+net_name: ansible
+address_space: 10.20.0.0/16
+
+# 'index' works like the last argument to Terraform's cidrsubnet()
+subnets:
+  - name: public
+    index: 1
+  - name: private
+    index: 10
+  - name: mgmt
+    index: 20
+
+tags:
+  managed_by: ansible
+  course: ans100
+  env: dev
