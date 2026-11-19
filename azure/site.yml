@@ -1,0 +1,65 @@
+---
+- name: Publish my Azure report as a website
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - vars/network.yml
+
+  vars:
+    site_title: "My Azure network"
+    revision: 1
+    discovered: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/discovered.json') | from_json }}"
+
+  tasks:
+    - name: Create a storage account that hosts a static website
+      azure.azcollection.azure_rm_storageaccount:
+        resource_group: "{{ rg }}"
+        name: "{{ storage_name }}"
+        location: "{{ discovered.location }}"
+        account_type: Standard_LRS
+        kind: StorageV2
+        minimum_tls_version: TLS1_2
+        static_website:
+          enabled: true
+          index_document: index.html
+        tags: "{{ tags }}"
+
+    - name: Render the page locally
+      ansible.builtin.template:
+        src: templates/index.html.j2
+        dest: "{{ playbook_dir }}/index.html"
+      register: page_file
+
+    - name: Upload the page into the $web container
+      azure.azcollection.azure_rm_storageblob:
+        resource_group: "{{ rg }}"
+        storage_account_name: "{{ storage_name }}"
+        container: "$web"
+        blob: index.html
+        src: "{{ playbook_dir }}/index.html"
+        content_type: text/html
+        force: "{{ page_file.changed }}"
+
+    - name: Ask Azure for the website address
+      azure.azcollection.azure_rm_resource_info:
+        resource_group: "{{ rg }}"
+        provider: Storage
+        resource_type: storageAccounts
+        resource_name: "{{ storage_name }}"
+        api_version: "2023-05-01"
+      register: storage_raw
+
+    - name: Check that the site serves this revision
+      ansible.builtin.uri:
+        url: "{{ storage_raw.response[0].properties.primaryEndpoints.web }}"
+        return_content: true
+      register: site
+      retries: 6
+      delay: 10
+      until: site.status == 200 and ('revision ' ~ revision) in site.content
+
+    - name: Show the website address
+      ansible.builtin.debug:
+        msg: "Your site is live at {{ storage_raw.response[0].properties.primaryEndpoints.web }}"
+

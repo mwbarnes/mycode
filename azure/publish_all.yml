@@ -1,0 +1,13 @@
+
+---
+- name: Build the network
+  ansible.builtin.import_playbook: vnet.yml
+
+- name: Configure the firewall
+  ansible.builtin.import_playbook: nsg.yml
+
+- name: Discover what exists
+  ansible.builtin.import_playbook: discover.yml
+
+- name: Publish the website
+  ansible.builtin.import_playbook: site.yml

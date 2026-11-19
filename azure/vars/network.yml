@@ -11,8 +11,14 @@ subnets:
     index: 10
   - name: mgmt
     index: 20
+  - name: db
+    index: 30
 
 tags:
   managed_by: ansible
   course: ans100
   env: dev
+
+
+# "ans" + 12 hex characters: unique per student, the same on every run
+storage_name: "ans{{ (rg | hash('sha1'))[:12] }}"

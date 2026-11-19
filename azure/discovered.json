@@ -198,6 +198,10 @@
         [
             "ansible-public-nsg",
             "Microsoft.Network/networkSecurityGroups"
+        ],
+        [
+            "ans975f839fe97c",
+            "Microsoft.Storage/storageAccounts"
         ]
     ],
     "vnets": [
@@ -236,6 +240,15 @@
                     "id": "/subscriptions/7de0ef6f-47c5-4df2-8477-5ae4868d0f46/resourceGroups/rg-student-14/providers/Microsoft.Network/virtualNetworks/ansible-vnet/subnets/ansible-public-subnet",
                     "name": "ansible-public-subnet",
                     "network_security_group": "/subscriptions/7de0ef6f-47c5-4df2-8477-5ae4868d0f46/resourceGroups/rg-student-14/providers/Microsoft.Network/networkSecurityGroups/ansible-public-nsg",
+                    "provisioning_state": "Succeeded",
+                    "route_table": null
+                },
+                {
+                    "address_prefix": "10.20.30.0/24",
+                    "address_prefixes": null,
+                    "id": "/subscriptions/7de0ef6f-47c5-4df2-8477-5ae4868d0f46/resourceGroups/rg-student-14/providers/Microsoft.Network/virtualNetworks/ansible-vnet/subnets/ansible-db-subnet",
+                    "name": "ansible-db-subnet",
+                    "network_security_group": null,
                     "provisioning_state": "Succeeded",
                     "route_table": null
                 }
