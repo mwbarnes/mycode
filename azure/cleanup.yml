@@ -1,0 +1,41 @@
+---
+- name: Remove everything the Ansible Azure labs built
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - vars/network.yml
+
+  tasks:
+    - name: Delete the website storage account (and the files in it)
+      azure.azcollection.azure_rm_storageaccount:
+        resource_group: "{{ rg }}"
+        name: "{{ storage_name }}"
+        state: absent
+        force_delete_nonempty: true
+      when: storage_name is defined
+
+    - name: Delete the virtual network (its subnets go with it)
+      azure.azcollection.azure_rm_virtualnetwork:
+        resource_group: "{{ rg }}"
+        name: "{{ net_name }}-vnet"
+        state: absent
+
+    - name: Delete the NSG (now that no subnet uses it)
+      azure.azcollection.azure_rm_securitygroup:
+        resource_group: "{{ rg }}"
+        name: "{{ net_name }}-public-nsg"
+        state: absent
+
+    - name: See what is left
+      azure.azcollection.azure_rm_resourcegroup_info:
+        name: "{{ rg }}"
+        list_resources: true
+      register: rg_info
+      retries: 3
+      delay: 5
+      until: rg_info is succeeded
+
+    - name: Report anything still tagged as Ansible-managed
+      ansible.builtin.debug:
+        msg: "Still here: {{ rg_info.resourcegroups[0].resources | selectattr('tags.managed_by', 'defined') | selectattr('tags.managed_by', 'equalto', 'ansible') | map(attribute='name') | list }}"
