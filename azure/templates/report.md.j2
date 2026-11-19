@@ -1,0 +1,36 @@
+# Azure report for {{ rg }}
+
+Region: {{ discovered.location }}
+
+## Resources ({{ discovered.resources | length }})
+{% for name, type in discovered.resources %}
+- {{ name }} ({{ type }})
+{% else %}
+- none
+{% endfor %}
+
+## Virtual networks
+{% for vnet in discovered.vnets %}
+### {{ vnet.name }} {{ vnet.address_prefixes | join(', ') }}
+Managed by: {{ (vnet.tags | default({}, true)).managed_by | default('unknown (no managed_by tag)') }}
+{% for subnet in vnet.subnets | default([]) | sort(attribute='address_prefix') %}
+- {{ subnet.name }} {{ subnet.address_prefix }}
+{% else %}
+- no subnets
+{% endfor %}
+{% else %}
+- none
+{% endfor %}
+
+## Network security groups
+{% for nsg in discovered.nsgs %}
+### {{ nsg.name }} (attached to {{ nsg.subnets | default([]) | length }} subnet(s))
+Subnets: {{ nsg.subnets | default([]) | map('regex_replace', '^.*/', '') | join(', ') | lower }}
+{% for rule in nsg.rules | default([]) | sort(attribute='priority') %}
+- {{ rule.priority }} {{ rule.direction }} {{ rule.access }} {{ rule.protocol }}/{{ rule.destination_port_range }} ({{ rule.name }})
+{% else %}
+- no custom rules
+{% endfor %}
+{% else %}
+- none
+{% endfor %}

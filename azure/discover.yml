@@ -1,0 +1,42 @@
+---
+- name: Discover what is in my resource group
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    rg: "{{ lookup('ansible.builtin.env', 'ARM_RESOURCE_GROUP') }}"
+
+  tasks:
+    - name: Everything in the resource group
+      azure.azcollection.azure_rm_resourcegroup_info:
+        name: "{{ rg }}"
+        list_resources: true
+      register: rg_info
+
+    - name: Every virtual network (with its subnets)
+      azure.azcollection.azure_rm_virtualnetwork_info:
+        resource_group: "{{ rg }}"
+      register: vnet_info
+
+    - name: Every network security group (with its rules)
+      azure.azcollection.azure_rm_securitygroup_info:
+        resource_group: "{{ rg }}"
+      register: nsg_info
+
+    - name: Keep only the fields we care about
+      ansible.builtin.set_fact:
+        discovered:
+          location: "{{ rg_info.resourcegroups[0].location }}"
+          resources: "{{ rg_info.resourcegroups[0].resources | map(attribute='name') | zip(rg_info.resourcegroups[0].resources | map(attribute='type')) | list }}"
+          vnets: "{{ vnet_info.virtualnetworks }}"
+          nsgs: "{{ nsg_info.securitygroups }}"
+
+    - name: Write a human-readable report
+      ansible.builtin.template:
+        src: templates/report.md.j2
+        dest: "{{ playbook_dir }}/report.md"
+
+    - name: Save the raw data for the next lab
+      ansible.builtin.copy:
+        content: "{{ discovered | to_nice_json }}"
+        dest: "{{ playbook_dir }}/discovered.json"
