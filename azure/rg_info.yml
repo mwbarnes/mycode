@@ -1,0 +1,28 @@
+---
+- name: Read my Azure resource group
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    rg: "{{ lookup('ansible.builtin.env', 'ARM_RESOURCE_GROUP') }}"
+
+  tasks:
+    - name: Look up the resource group and everything in it
+      azure.azcollection.azure_rm_resourcegroup_info:
+        name: "{{ rg }}"
+        list_resources: true
+      register: rg_info
+
+    - name: Show what Azure told us
+      ansible.builtin.debug:
+        msg:
+          - "Resource group: {{ rg_info.resourcegroups[0].name }}"
+          - "Location:       {{ rg_info.resourcegroups[0].location }}"
+          - "Resources:      {{ rg_info.resourcegroups[0].resources | length }}"
+
+    - name: show name and type of each resource
+      ansible.builtin.debug:
+        msg: "{{ item.name }} ({{ item.type }})"
+      loop: "{{ rg_info.resourcegroups[0].resources }}"
+      loop_control:
+        label: "{{ item.name }}"
