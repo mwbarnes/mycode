@@ -1,0 +1,4 @@
+---
+file_content: "Success! You done did an Ansible!"
+file_path: "/tmp/challenge_dir/"
+file_name: "challenge_file.txt"
