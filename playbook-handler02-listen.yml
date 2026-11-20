@@ -32,6 +32,11 @@
       src: ~/mycode/files/index.html
       dest: /var/www/html/
 
+  - name: copy about.html
+    copy:
+      src: ~/mycode/files/about.html
+      dest: /var/www/html/
+
   # if dest is directory download every time
   # but only replace if destination is different
   # https://raw.githubusercontent.com/rzfeeser/
